@@ -1,10 +1,41 @@
 #!/bin/bash
 set -euxo pipefail
 
-cat >/etc/motd <<'EOF'
-PCI POC MySQL host.
+# Route package installation through the controlled egress proxy.
+# Production deployments should use a pre-hardened golden AMI or a private
+# package mirror so the DB instance requires zero internet egress at startup.
+PROXY_URL="http://${proxy_private_ip}:${egress_proxy_port}"
+export http_proxy="$PROXY_URL"
+export https_proxy="$PROXY_URL"
+export HTTP_PROXY="$PROXY_URL"
+export HTTPS_PROXY="$PROXY_URL"
+export NO_PROXY="169.254.169.254,localhost,127.0.0.1"
 
-This instance is placed in an isolated subnet and accepts MySQL only from the app security group.
-For production, use a hardened golden AMI, private package repository, or managed RDS where permitted.
+cat >/etc/dnf/dnf.conf <<EOF
+[main]
+gpgcheck=True
+installonly_limit=3
+clean_requirements_on_remove=True
+best=False
+skip_if_unavailable=True
+proxy=$PROXY_URL
 EOF
 
+dnf install -y mariadb105-server
+
+# Bind to all interfaces so the app instance can connect on its private IP.
+# The isolated-subnet SG ensures only the app SG can reach port 3306.
+cat >>/etc/my.cnf.d/mariadb-server.cnf <<EOF
+
+[mysqld]
+bind-address = 0.0.0.0
+port         = ${mysql_port}
+EOF
+
+systemctl enable --now mariadb
+
+cat >/etc/motd <<'EOF'
+PCI POC MySQL host.
+Isolated subnet -- accepts TCP 3306 from app SG only.
+Managed via SSM Session Manager (VPC interface endpoint, no SSH, no internet).
+EOF

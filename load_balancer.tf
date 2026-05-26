@@ -8,6 +8,14 @@ resource "aws_lb" "app" {
   enable_deletion_protection = false
   drop_invalid_header_fields = true
 
+  access_logs {
+    bucket  = aws_s3_bucket.alb_logs.bucket
+    prefix  = "alb-logs"
+    enabled = true
+  }
+
+  depends_on = [aws_s3_bucket_policy.alb_logs]
+
   tags = {
     Name = "${var.project_name}-alb"
   }
@@ -67,4 +75,3 @@ resource "aws_lb_target_group_attachment" "app" {
   target_id        = aws_instance.app.id
   port             = var.app_port
 }
-

@@ -80,7 +80,9 @@ resource "aws_instance" "mysql" {
   user_data_replace_on_change = true
 
   user_data = templatefile("${path.module}/templates/mysql-user-data.sh.tftpl", {
-    mysql_port = var.mysql_port
+    mysql_port        = var.mysql_port
+    proxy_private_ip  = aws_instance.egress_proxy.private_ip
+    egress_proxy_port = var.egress_proxy_port
   })
 
   root_block_device {

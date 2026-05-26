@@ -1,8 +1,8 @@
 title: PCI-DSS 1.3.1 / 1.3.2 POC
 direction: LR
 graph_attr:
-  ranksep: "1.2"
-  nodesep: "0.7"
+  ranksep: "1.4"
+  nodesep: "0.8"
 clusters:
   - id: internet
     label: Internet
@@ -17,6 +17,11 @@ clusters:
   - id: db
     label: Isolated DB subnets
     parent: aws
+  - id: aws_services
+    label: AWS Services (VPC endpoints)
+    parent: aws
+  - id: audit
+    label: Audit / Logging
 nodes:
   - id: approved_clients
     label: Approved client IPs
@@ -35,7 +40,7 @@ nodes:
     icon: aws.alb
     cluster: public
   - id: proxy
-    label: Egress proxy allowlist
+    label: Egress proxy (Squid)
     icon: generic.firewall
     cluster: public
   - id: app_instance
@@ -54,6 +59,14 @@ nodes:
     label: MySQL SG
     icon: aws.sg
     cluster: db
+  - id: ssm_endpoints
+    label: SSM / SSMMessages / EC2Messages VPC endpoints
+    icon: aws.ssm
+    cluster: aws_services
+  - id: s3_endpoint
+    label: S3 Gateway endpoint
+    icon: aws.s3
+    cluster: aws_services
   - id: package_repo
     label: example.com package repo
     icon: internet
@@ -62,6 +75,18 @@ nodes:
     label: secureweb.com HTTPS
     icon: internet
     cluster: internet
+  - id: flow_logs
+    label: VPC Flow Logs (CloudWatch)
+    icon: aws.cloudwatch
+    cluster: audit
+  - id: alb_logs
+    label: ALB access logs (S3)
+    icon: aws.s3
+    cluster: audit
+  - id: vpc_node
+    label: VPC (all traffic)
+    icon: aws.vpc
+    cluster: aws
 edges:
   - from: approved_clients
     to: alb_sg
@@ -88,11 +113,31 @@ edges:
     label: only from app
   - from: app_instance
     to: proxy
-    label: proxy 3128 only
+    label: proxy 3128 (allowlisted domains)
+  - from: mysql_instance
+    to: proxy
+    label: proxy 3128 (startup only)
   - from: proxy
     to: package_repo
     label: allowlisted HTTP/S
   - from: proxy
     to: secureweb
     label: allowlisted HTTPS
-
+  - from: app_instance
+    to: ssm_endpoints
+    label: SSM 443
+  - from: mysql_instance
+    to: ssm_endpoints
+    label: SSM 443
+  - from: app_instance
+    to: s3_endpoint
+    label: S3 (packages/SSM artefacts)
+  - from: mysql_instance
+    to: s3_endpoint
+    label: S3 (packages/SSM artefacts)
+  - from: vpc_node
+    to: flow_logs
+    label: ALL traffic (Flow Logs)
+  - from: alb
+    to: alb_logs
+    label: access logs

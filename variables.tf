@@ -31,6 +31,14 @@ variable "allowed_ingress_cidrs" {
     condition     = length(var.allowed_ingress_cidrs) > 0
     error_message = "At least one allowed source CIDR must be provided."
   }
+
+  validation {
+    condition = alltrue([
+      for cidr in var.allowed_ingress_cidrs :
+      can(cidrnetmask(cidr)) && cidr != "0.0.0.0/0"
+    ])
+    error_message = "allowed_ingress_cidrs must contain valid IPv4 CIDR blocks and must not include 0.0.0.0/0."
+  }
 }
 
 variable "acm_certificate_arn" {
@@ -86,3 +94,8 @@ variable "root_volume_size_gb" {
   default     = 20
 }
 
+variable "os_package_domains" {
+  description = "OS package repository domains allowed via the egress proxy during instance startup. Defaults cover Amazon Linux 2023. In production, replace with a private package mirror and remove these entries."
+  type        = list(string)
+  default     = ["cdn.amazonlinux.com", "rpm.awsstatic.com"]
+}

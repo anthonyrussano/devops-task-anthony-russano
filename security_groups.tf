@@ -76,6 +76,24 @@ resource "aws_vpc_security_group_egress_rule" "app_to_proxy" {
   referenced_security_group_id = aws_security_group.egress_proxy.id
 }
 
+resource "aws_vpc_security_group_egress_rule" "app_to_vpc_endpoints" {
+  security_group_id            = aws_security_group.app.id
+  description                  = "SSM Session Manager via VPC interface endpoints (no internet path)"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.vpc_endpoints.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "app_to_s3_endpoint" {
+  security_group_id = aws_security_group.app.id
+  description       = "S3 gateway endpoint for SSM artifacts and approved AWS package access"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+}
+
 resource "aws_security_group" "mysql" {
   name        = "${var.project_name}-mysql-sg"
   description = "MySQL instance in isolated subnet."
@@ -95,6 +113,33 @@ resource "aws_vpc_security_group_ingress_rule" "mysql_from_app" {
   referenced_security_group_id = aws_security_group.app.id
 }
 
+resource "aws_vpc_security_group_egress_rule" "mysql_to_proxy" {
+  security_group_id            = aws_security_group.mysql.id
+  description                  = "Startup package install through egress proxy (production: pre-built AMI)"
+  ip_protocol                  = "tcp"
+  from_port                    = var.egress_proxy_port
+  to_port                      = var.egress_proxy_port
+  referenced_security_group_id = aws_security_group.egress_proxy.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "mysql_to_vpc_endpoints" {
+  security_group_id            = aws_security_group.mysql.id
+  description                  = "SSM Session Manager via VPC interface endpoints (no internet path)"
+  ip_protocol                  = "tcp"
+  from_port                    = 443
+  to_port                      = 443
+  referenced_security_group_id = aws_security_group.vpc_endpoints.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "mysql_to_s3_endpoint" {
+  security_group_id = aws_security_group.mysql.id
+  description       = "S3 gateway endpoint for SSM artifacts and approved AWS package access"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+}
+
 resource "aws_security_group" "egress_proxy" {
   name        = "${var.project_name}-egress-proxy-sg"
   description = "Controlled egress proxy for app startup and daily HTTPS dependencies."
@@ -107,11 +152,20 @@ resource "aws_security_group" "egress_proxy" {
 
 resource "aws_vpc_security_group_ingress_rule" "proxy_from_app" {
   security_group_id            = aws_security_group.egress_proxy.id
-  description                  = "Forward proxy access from app instance only"
+  description                  = "Forward proxy access from app instance"
   ip_protocol                  = "tcp"
   from_port                    = var.egress_proxy_port
   to_port                      = var.egress_proxy_port
   referenced_security_group_id = aws_security_group.app.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "proxy_from_mysql" {
+  security_group_id            = aws_security_group.egress_proxy.id
+  description                  = "Forward proxy access from MySQL instance (startup package install only)"
+  ip_protocol                  = "tcp"
+  from_port                    = var.egress_proxy_port
+  to_port                      = var.egress_proxy_port
+  referenced_security_group_id = aws_security_group.mysql.id
 }
 
 resource "aws_vpc_security_group_egress_rule" "proxy_http" {
@@ -131,4 +185,3 @@ resource "aws_vpc_security_group_egress_rule" "proxy_https" {
   to_port           = 443
   cidr_ipv4         = "0.0.0.0/0"
 }
-

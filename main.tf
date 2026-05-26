@@ -38,10 +38,10 @@ locals {
     cidrsubnet(var.vpc_cidr, 8, 22),
   ]
 
-  outbound_allowlist_domains = [
-    var.package_repository_domain,
-    var.daily_operation_domain,
-  ]
+  outbound_allowlist_domains = concat(
+    [var.package_repository_domain, var.daily_operation_domain],
+    var.os_package_domains,
+  )
 }
 
 resource "aws_vpc" "this" {
