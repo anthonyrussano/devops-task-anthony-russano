@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euxo pipefail
+
+cat >/etc/motd <<'EOF'
+PCI POC MySQL host.
+
+This instance is placed in an isolated subnet and accepts MySQL only from the app security group.
+For production, use a hardened golden AMI, private package repository, or managed RDS where permitted.
+EOF
+

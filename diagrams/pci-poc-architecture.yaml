@@ -1,0 +1,98 @@
+title: PCI-DSS 1.3.1 / 1.3.2 POC
+direction: LR
+graph_attr:
+  ranksep: "1.2"
+  nodesep: "0.7"
+clusters:
+  - id: internet
+    label: Internet
+  - id: aws
+    label: AWS VPC 10.42.0.0/16
+  - id: public
+    label: Public DMZ subnets
+    parent: aws
+  - id: app
+    label: Private app subnets
+    parent: aws
+  - id: db
+    label: Isolated DB subnets
+    parent: aws
+nodes:
+  - id: approved_clients
+    label: Approved client IPs
+    icon: users
+    cluster: internet
+  - id: blocked_clients
+    label: Other internet sources
+    icon: internet
+    cluster: internet
+  - id: alb_sg
+    label: ALB SG allowlist
+    icon: aws.sg
+    cluster: public
+  - id: alb
+    label: Public ALB + ACM TLS
+    icon: aws.alb
+    cluster: public
+  - id: proxy
+    label: Egress proxy allowlist
+    icon: generic.firewall
+    cluster: public
+  - id: app_instance
+    label: Linux app EC2
+    icon: aws.ec2
+    cluster: app
+  - id: app_sg
+    label: App SG
+    icon: aws.sg
+    cluster: app
+  - id: mysql_instance
+    label: Linux MySQL EC2
+    icon: aws.ec2
+    cluster: db
+  - id: mysql_sg
+    label: MySQL SG
+    icon: aws.sg
+    cluster: db
+  - id: package_repo
+    label: example.com package repo
+    icon: internet
+    cluster: internet
+  - id: secureweb
+    label: secureweb.com HTTPS
+    icon: internet
+    cluster: internet
+edges:
+  - from: approved_clients
+    to: alb_sg
+    label: finite CIDR list, 80/443
+  - from: blocked_clients
+    to: alb_sg
+    label: denied
+    color: "#b91c1c"
+    style: dashed
+  - from: alb_sg
+    to: alb
+    label: HTTPS, HTTP redirect
+  - from: alb
+    to: app_sg
+    label: HTTP 80
+  - from: app_sg
+    to: app_instance
+    label: only from ALB
+  - from: app_instance
+    to: mysql_sg
+    label: MySQL 3306
+  - from: mysql_sg
+    to: mysql_instance
+    label: only from app
+  - from: app_instance
+    to: proxy
+    label: proxy 3128 only
+  - from: proxy
+    to: package_repo
+    label: allowlisted HTTP/S
+  - from: proxy
+    to: secureweb
+    label: allowlisted HTTPS
+

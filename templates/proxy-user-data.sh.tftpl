@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y squid
+
+cat >/etc/squid/squid.conf <<'SQUID_CONF'
+visible_hostname pci-poc-egress-proxy
+http_port ${egress_proxy_port}
+
+acl SSL_ports port 443
+acl Safe_ports port 80
+acl Safe_ports port 443
+acl CONNECT method CONNECT
+acl allowed_domains dstdomain %{ for domain in allowed_domains } .${domain} ${domain}%{ endfor }
+
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow allowed_domains
+http_access deny all
+
+access_log /var/log/squid/access.log
+cache_log /var/log/squid/cache.log
+SQUID_CONF
+
+systemctl enable --now squid
+
