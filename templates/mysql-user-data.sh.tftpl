@@ -5,6 +5,23 @@ set -euxo pipefail
 # Production deployments should use a pre-hardened golden AMI or a private
 # package mirror so the DB instance requires zero internet egress at startup.
 PROXY_URL="http://${proxy_private_ip}:${egress_proxy_port}"
+wait_for_proxy() {
+  local proxy_host="$1"
+  local proxy_port="$2"
+
+  for attempt in $(seq 1 60); do
+    if timeout 2 bash -c "</dev/tcp/$proxy_host/$proxy_port" 2>/dev/null; then
+      return 0
+    fi
+    sleep 5
+  done
+
+  echo "Timed out waiting for egress proxy $proxy_host:$proxy_port" >&2
+  return 1
+}
+
+wait_for_proxy "${proxy_private_ip}" "${egress_proxy_port}"
+
 export http_proxy="$PROXY_URL"
 export https_proxy="$PROXY_URL"
 export HTTP_PROXY="$PROXY_URL"

@@ -2,6 +2,23 @@
 set -euxo pipefail
 
 PROXY_URL="http://${proxy_private_ip}:${egress_proxy_port}"
+wait_for_proxy() {
+  local proxy_host="$1"
+  local proxy_port="$2"
+
+  for attempt in $(seq 1 60); do
+    if timeout 2 bash -c "</dev/tcp/$proxy_host/$proxy_port" 2>/dev/null; then
+      return 0
+    fi
+    sleep 5
+  done
+
+  echo "Timed out waiting for egress proxy $proxy_host:$proxy_port" >&2
+  return 1
+}
+
+wait_for_proxy "${proxy_private_ip}" "${egress_proxy_port}"
+
 cat >/etc/profile.d/pci-poc-proxy.sh <<EOF
 export http_proxy="$PROXY_URL"
 export https_proxy="$PROXY_URL"
@@ -23,7 +40,7 @@ EOF
 # Placeholder for the startup dependency from the provided package repository.
 # In a real rollout this should download and verify a signed package artifact.
 mkdir -p /opt/pci-poc-app /var/www/pci-poc-app
-curl --fail --silent --show-error --proxy "$PROXY_URL" "https://${package_repository_host}/" >/opt/pci-poc-app/startup-package.html
+curl --fail --silent --show-error --retry 12 --retry-delay 5 --proxy "$PROXY_URL" "https://${package_repository_host}/" >/opt/pci-poc-app/startup-package.html
 
 cat >/var/www/pci-poc-app/index.html <<EOF
 <!doctype html>
