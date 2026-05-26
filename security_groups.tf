@@ -41,7 +41,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
 
 resource "aws_security_group" "app" {
   name        = "${var.project_name}-app-sg"
-  description = "Private app instance. No direct internet route or default outbound rule."
+  description = "Private app instance. No direct internet route. Egress restricted by named rules; outbound internet is impossible without traversing the proxy."
   vpc_id      = aws_vpc.this.id
 
   tags = {

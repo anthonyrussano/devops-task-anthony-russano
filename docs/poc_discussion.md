@@ -54,7 +54,7 @@ be replaced.
 ## POC guardrails and limitations
 
 - `allowed_ingress_cidrs` validates that at least one IPv4 CIDR is supplied and rejects `0.0.0.0/0`.
-- App and DB security groups have no default egress; every outbound path is represented as a named Terraform rule.
+- Named egress rules are defined for every intended outbound path from the app and DB instances (MySQL 3306, proxy 3128, SSM 443, S3 prefix list). The Terraform `aws_vpc_security_group_egress_rule` resources used here follow the provider v5 recommended style; note that because no inline `egress {}` blocks are present on those security groups, the AWS-default "allow all outbound" rule may also be present. The primary PCI 1.3.2 hard control is the route table: private and isolated subnets have no internet route, so internet egress is impossible without traversing the proxy regardless of the SG egress state. In production, replacing the proxy with AWS Network Firewall provides strict FQDN-based stateful inspection and eliminates any residual SG-level ambiguity.
 - ALB access logging is created with an explicit bucket policy dependency so AWS log-delivery validation does not race the policy attachment.
 - The Squid proxy is intentionally single-instance for the POC. It proves the control objective but is not the final HA design.
 - The app startup package from `example.com` is represented as a placeholder artifact fetch because the real package name, signature, and repository path were not provided.
